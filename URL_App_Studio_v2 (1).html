@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>URL App Studio v2</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface2: #1c2128;
+  --border: #30363d;
+  --accent: #58a6ff;
+  --accent2: #3fb950;
+  --warn: #d29922;
+  --err: #f85149;
+  --text: #c9d1d9;
+  --text-dim: #6e7681;
+  --text-bright: #e6edf3;
+  --tok-key: #79c0ff;
+  --tok-str: #a5d6ff;
+  --tok-num: #f2cc60;
+  --tok-bool: #ff7b72;
+  --tok-punct: #8b949e;
+  --toolbar-h: 52px;
+  --bottombar-h: 60px;
+  --statusbar-h: 20px;
+  --sidebar-w: 220px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif}
+button{cursor:pointer;font-family:inherit}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* TOOLBAR */
+#toolbar{
+  position:fixed;top:0;left:0;right:0;height:var(--toolbar-h);
+  background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 10px;gap:6px;z-index:300;
+}
+.logo{font-weight:800;font-size:14px;color:var(--text-bright);white-space:nowrap}
+.logo em{color:var(--accent);font-style:normal}
+.logo small{font-size:10px;opacity:.4;font-weight:400}
+.tb-sep{width:1px;height:20px;background:var(--border);flex-shrink:0}
+.tb-spacer{flex:1}
+.tb-btn{
+  padding:6px 10px;border-radius:7px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text);font-size:12px;font-weight:600;
+  white-space:nowrap;transition:all .15s;flex-shrink:0;
+}
+.tb-btn:hover{background:var(--border);color:var(--text-bright)}
+.tb-btn:active{transform:scale(.96)}
+.tb-btn:disabled{opacity:.3;cursor:default}
+.tb-btn.primary{background:var(--accent);color:#0d1117;border-color:var(--accent)}
+.tb-btn.success{background:var(--accent2);color:#0d1117;border-color:var(--accent2)}
+.tb-btn.primary:hover,.tb-btn.success:hover{filter:brightness(1.1)}
+.tb-label{display:inline}
+#ham-btn{
+  display:none;width:40px;height:40px;border-radius:8px;
+  border:1px solid var(--border);background:var(--surface2);
+  color:var(--text);font-size:18px;flex-shrink:0;
+  align-items:center;justify-content:center;
+}
+
+/* MAIN LAYOUT */
+#app{
+  position:fixed;top:var(--toolbar-h);left:0;right:0;
+  bottom:calc(var(--statusbar-h));
+  display:grid;
+  grid-template-columns:var(--sidebar-w) 1fr 300px;
+  grid-template-rows:1fr 140px;
+}
+
+/* SIDEBAR */
+#sidebar{
+  grid-row:1/3;background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;
+  transition:transform .25s cubic-bezier(.4,0,.2,1);z-index:200;
+}
+.sidebar-hdr{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.sidebar-hdr-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim)}
+.sidebar-hdr-btn{width:30px;height:30px;border-radius:6px;border:none;background:rgba(88,166,255,.15);color:var(--accent);font-size:20px;display:flex;align-items:center;justify-content:center}
+#scene-list{flex:1;overflow-y:auto;padding:6px}
+.scene-item{padding:10px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;border:1px solid transparent;transition:background .1s;min-height:44px}
+.scene-item:hover{background:var(--surface2)}
+.scene-item.active{background:rgba(88,166,255,.12);border-color:rgba(88,166,255,.3);color:var(--accent)}
+.scene-del{opacity:0;width:28px;height:28px;border-radius:5px;background:none;border:1px solid var(--err);color:var(--err);font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.scene-item:hover .scene-del{opacity:1}
+.scene-badge{font-size:10px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:var(--text-dim)}
+.scene-item.active .scene-badge{background:rgba(88,166,255,.15);border-color:rgba(88,166,255,.3);color:var(--accent)}
+.sidebar-section{border-top:1px solid var(--border);padding:8px 10px}
+.sidebar-section-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px}
+.example-btn{display:flex;align-items:center;width:100%;text-align:left;padding:9px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:12px;margin-bottom:4px;min-height:40px;transition:background .1s}
+.example-btn:hover{background:var(--border);color:var(--text-bright)}
+.example-btn:active{transform:scale(.98)}
+#drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:190;opacity:0;transition:opacity .25s}
+
+/* EDITOR AREA */
+#editor-area{grid-column:2;grid-row:1;display:flex;flex-direction:column;overflow:hidden}
+#editor-tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 8px;flex-shrink:0}
+.etab{padding:10px 14px;font-size:12px;font-weight:600;color:var(--text-dim);border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;min-height:44px;display:flex;align-items:center}
+.etab:hover{color:var(--text)}
+.etab.active{color:var(--accent);border-bottom-color:var(--accent)}
+#editor-panels{flex:1;overflow:hidden;position:relative}
+.hl-wrap{position:relative;height:100%;font-family:'Cascadia Code','Fira Code','Consolas',monospace;font-size:13px;line-height:1.65;background:var(--bg)}
+.hl-lines{position:absolute;left:0;top:0;bottom:0;width:44px;background:var(--surface);border-right:1px solid var(--border);overflow:hidden;text-align:right;padding:14px 6px 14px 0;color:var(--text-dim);font-size:11px;line-height:1.65;user-select:none;z-index:2}
+.hl-display{position:absolute;left:44px;top:0;right:0;bottom:0;padding:14px 12px;overflow:auto;pointer-events:none;white-space:pre;z-index:1;color:var(--tok-punct)}
+.raw-ed{position:absolute;left:44px;top:0;right:0;bottom:0;padding:14px 12px;background:transparent;color:transparent;caret-color:var(--text-bright);border:none;outline:none;resize:none;font-family:inherit;font-size:inherit;line-height:inherit;white-space:pre;overflow:auto;z-index:3}
+.raw-ed::selection{background:rgba(88,166,255,.25)}
+#panel-visual{height:100%;overflow-y:auto;background:var(--bg);display:none}
+.vpanel-inner{padding:16px;max-width:560px;margin:0 auto}
+.vfield{margin-bottom:14px}
+.vfield label{display:block;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin-bottom:5px}
+.vfield input,.vfield textarea{width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text-bright);font-size:13px;outline:none;transition:border-color .15s;-webkit-appearance:none;min-height:44px}
+.vfield input:focus,.vfield textarea:focus{border-color:var(--accent)}
+.vfield textarea{font-family:inherit;resize:vertical;min-height:80px}
+.vfield-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.vsection-title{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin:16px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.vbtn-item{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:10px;margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
+.vbtn-item input{padding:8px 10px;font-size:12px;min-height:40px}
+.vbtn-del{width:36px;height:40px;border-radius:6px;background:none;border:1px solid var(--err);color:var(--err);font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.vadd-btn{background:none;border:1px dashed var(--border);color:var(--text-dim);border-radius:7px;padding:10px;width:100%;font-size:12px;transition:all .15s;min-height:44px}
+.vadd-btn:hover{border-color:var(--accent);color:var(--accent)}
+.vapply{width:100%;margin-top:14px;padding:12px;background:var(--accent);color:#0d1117;border:none;border-radius:8px;font-size:14px;font-weight:700;min-height:48px}
+#url-strip{display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--surface2);border-top:1px solid var(--border);flex-shrink:0}
+#url-strip span{font-size:10px;color:var(--text-dim);white-space:nowrap}
+#url-output{flex:1;font-family:monospace;font-size:10px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* PREVIEW */
+#preview-area{grid-column:3;grid-row:1/3;background:var(--surface2);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#preview-header{padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+#preview-header-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim)}
+.pv-sel{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:11px;border-radius:4px;padding:4px 6px;outline:none;min-height:32px}
+#preview-body{flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:16px 10px}
+.phone-frame{width:240px;background:#fff;border-radius:28px;overflow:hidden;box-shadow:0 16px 50px rgba(0,0,0,.6);border:3px solid #2d2d2d;flex-shrink:0}
+.phone-notch{background:#1a1a1a;height:28px;display:flex;align-items:center;justify-content:center;border-radius:0 0 12px 12px;margin:0 24px 2px}
+.phone-notch-pill{width:50px;height:4px;background:#333;border-radius:2px}
+.pv-titlebar{background:#111;color:#fff;text-align:center;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:7px}
+.pv-body{padding:16px 14px;min-height:260px}
+.pv-head{font-size:16px;font-weight:900;color:#1a1a1a;margin-bottom:5px;line-height:1.2}
+.pv-desc{font-size:11px;color:#666;line-height:1.5;margin-bottom:14px;white-space:pre-line}
+.pv-field-label{font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#999;margin-bottom:3px}
+.pv-field-input{width:100%;padding:8px;background:#f5f5f5;border:1px solid #e5e5e5;border-radius:8px;font-size:11px;color:#aaa;margin-bottom:8px}
+.pv-btn{width:100%;padding:10px;color:#fff;border:none;border-radius:12px;font-size:11px;font-weight:700;margin-bottom:6px;text-align:center;display:block}
+
+/* DIAGNOSTICS */
+#diag-panel{grid-column:2;grid-row:2;background:var(--surface);border-top:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#diag-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface2);padding:0 6px;flex-shrink:0}
+.dtab{padding:6px 12px;font-size:11px;font-weight:600;color:var(--text-dim);border-bottom:2px solid transparent;transition:all .15s;min-height:36px;display:flex;align-items:center;gap:4px}
+.dtab:hover{color:var(--text)}
+.dtab.active{color:var(--text-bright);border-bottom-color:var(--accent)}
+.badge{min-width:16px;height:16px;background:var(--err);color:#fff;border-radius:8px;font-size:10px;font-weight:700;text-align:center;line-height:16px;padding:0 4px}
+.badge.w{background:var(--warn)}
+.badge.ok{background:var(--accent2)}
+#diag-body{flex:1;overflow-y:auto;padding:4px 6px}
+.diag-item{display:flex;align-items:flex-start;gap:7px;padding:6px;border-radius:5px;margin-bottom:2px;cursor:pointer;transition:background .1s;min-height:36px}
+.diag-item:hover{background:var(--surface2)}
+.diag-icon{font-size:13px;flex-shrink:0;margin-top:2px}
+.diag-msg{flex:1;font-size:12px;line-height:1.4}
+.diag-loc{color:var(--text-dim);font-size:10px;font-family:monospace}
+.diag-empty{color:var(--text-dim);font-size:12px;padding:12px 6px}
+
+/* STATUS BAR */
+#statusbar{
+  position:fixed;bottom:0;left:0;right:0;height:var(--statusbar-h);
+  background:var(--accent);display:flex;align-items:center;
+  padding:0 10px;gap:12px;z-index:300;font-size:11px;color:#0d1117;font-weight:600;
+}
+#statusbar.e{background:var(--err);color:#fff}
+#statusbar.w{background:var(--warn);color:#0d1117}
+#status-msg{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* BOTTOM TAB BAR */
+#bottom-bar{
+  position:fixed;bottom:0;left:0;right:0;
+  height:calc(var(--bottombar-h) + var(--safe-bottom));
+  padding-bottom:var(--safe-bottom);
+  background:var(--surface);border-top:1px solid var(--border);
+  display:none;z-index:300;
+}
+.bottom-tabs{display:flex;height:100%}
+.btab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:none;color:var(--text-dim);font-size:10px;font-weight:600;transition:color .15s;padding:4px}
+.btab .btab-icon{font-size:20px;line-height:1}
+.btab.active{color:var(--accent)}
+.btab:active{opacity:.7}
+
+/* MOBILE PANELS */
+#mobile-panels{display:none;position:absolute;top:var(--toolbar-h);left:0;right:0;bottom:calc(var(--statusbar-h)+var(--bottombar-h)+var(--safe-bottom))}
+.mpanel{display:none;position:absolute;inset:0;overflow:hidden;flex-direction:column}
+.mpanel.active{display:flex}
+
+/* RUNTIME OVERLAY */
+#runtime-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;align-items:center;justify-content:center;padding:16px}
+#runtime-overlay.show{display:flex}
+.rt-close{position:absolute;top:16px;right:16px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px 18px;font-size:13px;font-weight:700;min-height:44px}
+.rt-phone{width:min(320px,100%);background:#fff;border-radius:36px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.8);border:5px solid #1a1a1a;max-height:calc(100vh - 80px);overflow-y:auto}
+#rt-title{background:#111;color:#fff;text-align:center;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:10px;position:sticky;top:0}
+#rt-content{padding:24px 18px;min-height:360px}
+
+/* RESPONSIVE */
+@media(max-width:1024px){
+  :root{--sidebar-w:200px}
+  #app{grid-template-columns:var(--sidebar-w) 1fr;grid-template-rows:1fr 130px}
+  #preview-area{display:none}
+  #ham-btn{display:flex}
+  .tb-label{display:none}
+}
+@media(max-width:600px){
+  :root{--toolbar-h:48px;--bottombar-h:58px;--statusbar-h:18px}
+  #app{display:none}
+  #sidebar{
+    display:flex!important;position:fixed;
+    top:var(--toolbar-h);
+    bottom:calc(var(--statusbar-h)+var(--bottombar-h)+var(--safe-bottom));
+    left:0;width:85%;max-width:300px;
+    transform:translateX(-110%);z-index:400;border-right:1px solid var(--border);
+  }
+  #sidebar.open{transform:translateX(0)}
+  #drawer-overlay{display:block}
+  #ham-btn{display:flex}
+  #bottom-bar{display:block}
+  #mobile-panels{display:block}
+  #statusbar{bottom:calc(var(--bottombar-h)+var(--safe-bottom))}
+  .logo small{display:none}
+  .tb-sep{display:none}
+  #btn-fmt,#btn-min,#btn-undo,#btn-redo,#undo-count{display:none}
+}
+@media(max-width:360px){
+  :root{--bottombar-h:54px}
+  .btab .btab-icon{font-size:17px}
+  .btab{font-size:9px}
+  .logo{font-size:12px}
+}
+@keyframes fadein{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.scene-item,.diag-item{animation:fadein .15s ease}
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <button id="ham-btn" onclick="toggleDrawer()">☰</button>
+  <div class="logo">URL App <em>Studio</em> <small>v2</small></div>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="btn-undo" onclick="undo()" disabled>↩</button>
+  <button class="tb-btn" id="btn-redo" onclick="redo()" disabled>↪</button>
+  <span id="undo-count" style="font-size:10px;color:var(--text-dim)"></span>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="btn-fmt" onclick="formatJSON()">⌗ <span class="tb-label">格式化</span></button>
+  <button class="tb-btn" id="btn-min" onclick="minifyJSON()">⊟ <span class="tb-label">壓縮</span></button>
+  <div class="tb-spacer"></div>
+  <button class="tb-btn primary" onclick="generateAndCopy()">⚡ <span class="tb-label">複製 URL</span></button>
+  <button class="tb-btn success" onclick="openRuntime()">▶ <span class="tb-label">運行</span></button>
+</div>
+
+<div id="drawer-overlay" onclick="closeDrawer()"></div>
+
+<div id="sidebar">
+  <div class="sidebar-hdr">
+    <span class="sidebar-hdr-label">場景列表</span>
+    <button class="sidebar-hdr-btn" onclick="addScene()">＋</button>
+  </div>
+  <div id="scene-list"></div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">載入範例</div>
+    <button class="example-btn" onclick="loadExample('adventure');closeDrawer()">⚔️ 冒險遊戲</button>
+    <button class="example-btn" onclick="loadExample('survey');closeDrawer()">📋 問卷表單</button>
+    <button class="example-btn" onclick="loadExample('tools');closeDrawer()">🛠️ 功能工具</button>
+    <button class="example-btn" onclick="loadExample('shop');closeDrawer()">🛒 商店範例</button>
+  </div>
+</div>
+
+<div id="app">
+  <div id="editor-area">
+    <div id="editor-tabs">
+      <div class="etab active" id="etab-code" onclick="switchETab('code')">📄 JSON 源碼</div>
+      <div class="etab" id="etab-visual" onclick="switchETab('visual')">✨ 場景編輯器</div>
+    </div>
+    <div id="editor-panels">
+      <div id="panel-code" style="height:100%">
+        <div class="hl-wrap">
+          <div class="hl-lines" id="D-lnums"></div>
+          <div class="hl-display" id="D-hldisplay"></div>
+          <textarea id="D-editor" class="raw-ed" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+        </div>
+      </div>
+      <div id="panel-visual">
+        <div class="vpanel-inner" id="D-vpanel"></div>
+      </div>
+    </div>
+    <div id="url-strip">
+      <span>URL：</span>
+      <div id="url-output">尚未生成...</div>
+      <button class="tb-btn" onclick="copyURL()" style="padding:5px 10px;font-size:11px">複製</button>
+    </div>
+  </div>
+
+  <div id="preview-area">
+    <div id="preview-header">
+      <span id="preview-header-label">📱 即時預覽</span>
+      <select id="D-pvsel" class="pv-sel" onchange="renderPreview()"></select>
+    </div>
+    <div id="preview-body">
+      <div class="phone-frame">
+        <div class="phone-notch"><div class="phone-notch-pill"></div></div>
+        <div class="pv-titlebar" id="D-pvtitle">App</div>
+        <div class="pv-body">
+          <div class="pv-head" id="D-pvhead"></div>
+          <div class="pv-desc" id="D-pvdesc"></div>
+          <div id="D-pvfields"></div>
+          <div id="D-pvbtns"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="diag-panel">
+    <div id="diag-tabs">
+      <div class="dtab active" id="D-dtab-err" onclick="switchDTab('err')">錯誤 <span class="badge" id="D-err-badge">0</span></div>
+      <div class="dtab" id="D-dtab-warn" onclick="switchDTab('warn')">警告 <span class="badge w" id="D-warn-badge">0</span></div>
+      <div class="dtab" id="D-dtab-info" onclick="switchDTab('info')">資訊 <span class="badge ok" id="D-info-badge">0</span></div>
+    </div>
+    <div id="diag-body"></div>
+  </div>
+</div>
+
+<!-- MOBILE PANELS -->
+<div id="mobile-panels">
+  <div class="mpanel active" id="mp-editor">
+    <div style="display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 8px;flex-shrink:0">
+      <div class="etab active" id="M-etab-code" onclick="switchMETab('code')">📄 JSON</div>
+      <div class="etab" id="M-etab-visual" onclick="switchMETab('visual')">✨ 視覺</div>
+    </div>
+    <div style="flex:1;overflow:hidden;position:relative">
+      <div id="M-panel-code" style="height:100%">
+        <div class="hl-wrap">
+          <div class="hl-lines" id="M-lnums"></div>
+          <div class="hl-display" id="M-hldisplay"></div>
+          <textarea id="M-editor" class="raw-ed" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+        </div>
+      </div>
+      <div id="M-panel-visual" style="display:none;height:100%;overflow-y:auto;background:var(--bg)">
+        <div class="vpanel-inner" id="M-vpanel"></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--surface2);border-top:1px solid var(--border);flex-shrink:0">
+      <span style="font-size:10px;color:var(--text-dim);white-space:nowrap">URL：</span>
+      <div id="M-url-output" style="flex:1;font-family:monospace;font-size:10px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">尚未生成...</div>
+      <button class="tb-btn" onclick="copyURL()" style="padding:5px 10px;font-size:11px">複製</button>
+    </div>
+  </div>
+
+  <div class="mpanel" id="mp-preview">
+    <div style="padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <span style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim)">📱 預覽</span>
+      <select id="M-pvsel" class="pv-sel" onchange="renderPreview()"></select>
+    </div>
+    <div style="flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:16px 10px">
+      <div class="phone-frame" style="width:min(250px,85%)">
+        <div class="phone-notch"><div class="phone-notch-pill"></div></div>
+        <div class="pv-titlebar" id="M-pvtitle">App</div>
+        <div class="pv-body">
+          <div class="pv-head" id="M-pvhead"></div>
+          <div class="pv-desc" id="M-pvdesc"></div>
+          <div id="M-pvfields"></div>
+          <div id="M-pvbtns"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mpanel" id="mp-diag">
+    <div style="display:flex;border-bottom:1px solid var(--border);background:var(--surface2);padding:0 6px;flex-shrink:0">
+      <div class="dtab active" id="M-dtab-err" onclick="switchMDTab('err')">錯誤 <span class="badge" id="M-err-badge">0</span></div>
+      <div class="dtab" id="M-dtab-warn" onclick="switchMDTab('warn')">警告 <span class="badge w" id="M-warn-badge">0</span></div>
+      <div class="dtab" id="M-dtab-info" onclick="switchMDTab('info')">資訊 <span class="badge ok" id="M-info-badge">0</span></div>
+    </div>
+    <div id="M-diag-body" style="flex:1;overflow-y:auto;padding:4px 6px"></div>
+  </div>
+</div>
+
+<div id="statusbar">
+  <span id="status-msg">就緒</span>
+  <span id="status-pos" style="flex-shrink:0;font-family:monospace">行1,列1</span>
+</div>
+
+<div id="bottom-bar">
+  <div class="bottom-tabs">
+    <button class="btab active" id="btab-editor" onclick="switchMTab('editor')"><span class="btab-icon">📄</span><span>編輯</span></button>
+    <button class="btab" id="btab-preview" onclick="switchMTab('preview')"><span class="btab-icon">📱</span><span>預覽</span></button>
+    <button class="btab" id="btab-diag" onclick="switchMTab('diag')"><span class="btab-icon">🔍</span><span id="diag-tab-label">診斷</span></button>
+    <button class="btab" id="btab-scenes" onclick="toggleDrawer()"><span class="btab-icon">🗂️</span><span>場景</span></button>
+  </div>
+</div>
+
+<div id="runtime-overlay">
+  <button class="rt-close" onclick="closeRuntime()">✕ 關閉</button>
+  <div class="rt-phone">
+    <div id="rt-title">App</div>
+    <div id="rt-content"></div>
+  </div>
+</div>
+
+<script>
+const EXAMPLES={
+  adventure:{"start":{"title":"冒險者旅館","head":"旅館大廳","desc":"你在一個古老的旅館醒來，窗外傳來遠處的號角聲。\n請輸入你的名字開始冒險：","fields":["名字"],"btns":[{"label":"🗡️ 前往森林","to":"forest"},{"label":"🏠 留在旅館","to":"inn"}]},"forest":{"title":"黑暗森林","head":"你好，{{名字}}！","desc":"森林中傳來詭異的聲響，前方分叉路口，左邊通往村莊，右邊是未知的危險。","btns":[{"label":"⬅️ 前往村莊","to":"village"},{"label":"➡️ 探索未知","run":"alert('你遇到了一條巨龍！')"}]},"inn":{"title":"溫暖旅館","head":"旅館休息區","desc":"你選擇留在旅館，享用了一頓豐盛的早餐。","btns":[{"label":"🔄 重新開始","run":"location.href=location.pathname"}]},"village":{"title":"平靜村莊","head":"{{名字}} 抵達村莊","desc":"村莊裡的人們熱情地歡迎你。一位老人告訴你，傳說中的寶藏就在山頂上。","btns":[{"label":"🏔️ 前往山頂","run":"alert('恭喜！你找到了傳說中的寶藏！')"},{"label":"🔄 重玩","run":"location.href=location.pathname"}]}},
+  survey:{"q1":{"title":"產品回饋","head":"您的意見很重要","desc":"感謝您使用我們的產品！請花2分鐘填寫問卷。","fields":["姓名","電子郵件"],"btns":[{"label":"下一題 →","to":"q2"}]},"q2":{"title":"產品回饋","head":"使用體驗","desc":"請評估您的滿意度（1=非常不滿意，5=非常滿意）：","fields":["整體滿意度(1-5)","功能完整度(1-5)"],"btns":[{"label":"← 上一題","to":"q1"},{"label":"下一題 →","to":"q3"}]},"q3":{"title":"產品回饋","head":"改善建議","desc":"您最希望我們改善哪些地方？","fields":["改善建議"],"btns":[{"label":"送出問卷 ✓","run":"alert('感謝您的寶貴意見！')"}]}},
+  tools:{"home":{"title":"工具箱","head":"實用工具集","desc":"選擇一個你需要的工具：","btns":[{"label":"🕐 現在時間","to":"clock"},{"label":"🎲 隨機數字","to":"random"},{"label":"🔢 BMI 計算","to":"bmi"}]},"clock":{"title":"時鐘","head":"現在時間","desc":"點擊按鈕取得當前時間：","btns":[{"label":"📍 顯示時間","run":"document.getElementById('rt-content').querySelector('p').innerText='現在是 '+new Date().toLocaleString('zh-TW')"},{"label":"← 返回","to":"home"}]},"random":{"title":"隨機數","head":"隨機數生成器","desc":"輸入範圍並生成隨機數：","fields":["最小值","最大值"],"btns":[{"label":"🎲 生成！","run":"const mn=parseInt(document.getElementById('rt-input-最小值').value)||1,mx=parseInt(document.getElementById('rt-input-最大值').value)||100;alert('結果：'+(Math.floor(Math.random()*(mx-mn+1))+mn))"},{"label":"← 返回","to":"home"}]},"bmi":{"title":"BMI","head":"BMI 計算器","desc":"輸入身高體重：","fields":["身高(cm)","體重(kg)"],"btns":[{"label":"計算 BMI","run":"const h=parseFloat(document.getElementById('rt-input-身高(cm)').value)/100,w=parseFloat(document.getElementById('rt-input-體重(kg)').value);h&&w?alert('BMI: '+(w/h/h).toFixed(1)):alert('請輸入有效數值')"},{"label":"← 返回","to":"home"}]}},
+  shop:{"home":{"title":"線上商店","head":"歡迎光臨","desc":"今日特惠商品等你來選購！","btns":[{"label":"🍎 選購水果","to":"fruits"},{"label":"🥤 選購飲料","to":"drinks"},{"label":"🛒 購物車","to":"cart"}]},"fruits":{"title":"水果區","head":"新鮮水果","desc":"今日到貨，保證新鮮！","btns":[{"label":"🍎 蘋果 $30","run":"alert('蘋果加入購物車！')"},{"label":"🍌 香蕉 $20","run":"alert('香蕉加入購物車！')"},{"label":"← 返回","to":"home"}]},"drinks":{"title":"飲料區","head":"精選飲料","desc":"冰涼飲品，消暑一夏！","btns":[{"label":"🧃 果汁 $45","run":"alert('果汁加入購物車！')"},{"label":"🧋 珍奶 $65","run":"alert('珍奶加入購物車！')"},{"label":"← 返回","to":"home"}]},"cart":{"title":"購物車","head":"確認訂單","desc":"請填寫收件資訊：","fields":["姓名","地址","電話"],"btns":[{"label":"✓ 確認下單","run":"alert('訂單成立！感謝購買')"},{"label":"← 繼續購物","to":"home"}]}}
+};
+
+// STATE
+let code='',undoStack=[],redoStack=[],lastPush='';
+let dTab='err',mTab='err',eTab='code',mETab='code',mMobTab='editor';
+let sceneId=null,data=null,rtState={},timer=null;
+let diagData={err:[],warn:[],info:[]};
+const isMob=()=>window.innerWidth<=600;
+
+// INIT
+function init(){
+  const raw=new URLSearchParams(location.search).get('d');
+  if(raw){
+    ['app','toolbar','statusbar','bottom-bar','mobile-panels'].forEach(id=>{
+      const el=document.getElementById(id);if(el)el.style.display='none';
+    });
+    const ov=document.getElementById('runtime-overlay');
+    ov.classList.add('show');
+    document.querySelector('.rt-close').style.display='none';
+    try{
+      let b64=decodeURIComponent(raw).replace(/-/g,'+').replace(/_/g,'/');
+      while(b64.length%4)b64+='=';
+      const app=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b64),c=>c.charCodeAt(0))));
+      rtState={};renderRuntime(Object.keys(app)[0],app);
+    }catch{document.getElementById('rt-content').innerHTML='<div style="padding:20px;color:red">解析錯誤</div>';}
+    return;
+  }
+  loadExample('adventure');
+  setupEvents('D-editor',false);
+  setupEvents('M-editor',true);
+}
+
+// EDITOR EVENTS
+function setupEvents(id,mobile){
+  const ed=document.getElementById(id);
+  ed.addEventListener('input',()=>{pushUndo(ed.value);schedule(mobile);});
+  ed.addEventListener('keydown',e=>{
+    if(e.key==='Tab'){e.preventDefault();const s=ed.selectionStart;ed.value=ed.value.slice(0,s)+'  '+ed.value.slice(ed.selectionEnd);ed.selectionStart=ed.selectionEnd=s+2;update(mobile);}
+    if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo();}
+    if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='z'))){e.preventDefault();redo();}
+    if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();genURL();setStatus('已儲存','ok');}
+  });
+  ed.addEventListener('keyup',updateCursor);
+  ed.addEventListener('click',updateCursor);
+  ed.addEventListener('scroll',()=>syncScroll(id,mobile));
+}
+
+function syncScroll(id,mobile){
+  const ed=document.getElementById(id);
+  const prefix=mobile?'M-':'D-';
+  const hl=document.getElementById(prefix+'hldisplay');
+  const ln=document.getElementById(prefix+'lnums');
+  if(hl){hl.scrollTop=ed.scrollTop;hl.scrollLeft=ed.scrollLeft;}
+  if(ln)ln.scrollTop=ed.scrollTop;
+}
+
+// UNDO
+function pushUndo(v){if(v===lastPush)return;if(undoStack.length>50)undoStack.shift();undoStack.push(lastPush);redoStack=[];lastPush=v;updateUndoUI();}
+function undo(){if(!undoStack.length)return;const p=undoStack.pop();redoStack.push(getVal());setVal(p);updateUndoUI();}
+function redo(){if(!redoStack.length)return;const n=redoStack.pop();undoStack.push(getVal());setVal(n);updateUndoUI();}
+function getVal(){return document.getElementById(isMob()?'M-editor':'D-editor').value;}
+function setVal(v){['D-editor','M-editor'].forEach(id=>document.getElementById(id).value=v);lastPush=v;update();}
+function updateUndoUI(){
+  document.getElementById('btn-undo').disabled=!undoStack.length;
+  document.getElementById('btn-redo').disabled=!redoStack.length;
+  document.getElementById('undo-count').textContent=undoStack.length?`(${undoStack.length})`:'';
+}
+
+// UPDATE PIPELINE
+function schedule(m){clearTimeout(timer);timer=setTimeout(()=>update(m),250);}
+function update(fromMobile){
+  const DE=document.getElementById('D-editor'),ME=document.getElementById('M-editor');
+  if(fromMobile)DE.value=ME.value; else ME.value=DE.value;
+  code=DE.value;
+  updateHL('D-',code);updateHL('M-',code);
+  const r=safeParse(code);
+  runDiag(r);
+  if(r.ok){data=r.data;updateScenes();updatePVSels();renderPreview();genURL(true);if(eTab==='visual')buildVPanel('D');if(mETab==='visual')buildVPanel('M');}
+}
+function updateCursor(){
+  const ed=document.getElementById(isMob()?'M-editor':'D-editor');
+  const t=ed.value.slice(0,ed.selectionStart);
+  const ln=t.split('\n').length,col=t.split('\n').pop().length+1;
+  document.getElementById('status-pos').textContent=`行${ln},列${col}`;
+}
+
+// HIGHLIGHT
+function tok(code){
+  return code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/("(?:[^"\\]|\\.)*")\s*(:)|("(?:[^"\\]|\\.)*")|(true|false|null)|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|([{}[\],:])/g,
+    (m,k,c,s,b,n,p)=>{
+      if(k&&c)return`<span style="color:var(--tok-key)">${k}</span>${c}`;
+      if(s)return`<span style="color:var(--tok-str)">${s}</span>`;
+      if(b)return`<span style="color:var(--tok-bool)">${b}</span>`;
+      if(n!==undefined)return`<span style="color:var(--tok-num)">${n}</span>`;
+      if(p)return`<span style="color:var(--tok-punct)">${p}</span>`;
+      return m;
+    });
+}
+function updateHL(pre,code){
+  const ln=code.split('\n').map((_,i)=>i+1).join('<br>');
+  const hl=document.getElementById(pre+'hldisplay');
+  const lnEl=document.getElementById(pre+'lnums');
+  if(hl)hl.innerHTML=tok(code);
+  if(lnEl)lnEl.innerHTML=ln;
+}
+
+// JSON UTILS
+function safeParse(c){try{return{ok:true,data:JSON.parse(c)};}catch(e){return{ok:false,error:e};}}
+function formatJSON(){const r=safeParse(getVal());if(!r.ok){setStatus('JSON錯誤','e');return;}pushUndo(getVal());setVal(JSON.stringify(r.data,null,2));setStatus('已格式化','ok');}
+function minifyJSON(){const r=safeParse(getVal());if(!r.ok){setStatus('JSON錯誤','e');return;}pushUndo(getVal());setVal(JSON.stringify(r.data));setStatus('已壓縮','ok');}
+
+// DIAGNOSTICS
+function runDiag(r){
+  diagData={err:[],warn:[],info:[]};
+  if(!r.ok){
+    const em=r.error.message;
+    const lm=em.match(/line (\d+)/i);
+    const pm=em.match(/position (\d+)/i);
+    let ln=lm?lm[1]:'?';
+    if(pm&&ln==='?')ln=code.slice(0,parseInt(pm[1])).split('\n').length;
+    diagData.err.push({msg:`JSON語法錯誤：${em}`,loc:`第${ln}行`,line:ln});
+    setStatus(`✗ JSON錯誤 第${ln}行`,'e');
+  }else{
+    setStatus('✓ JSON有效','ok');
+    const sc=Object.keys(r.data);
+    sc.forEach(id=>{
+      const s=r.data[id];
+      (s.btns||[]).forEach(b=>{if(b.to&&!r.data[b.to])diagData.warn.push({msg:`按鈕「${b.label}」指向不存在的場景「${b.to}」`,loc:`場景:${id}`});});
+      if(!s.btns||!s.btns.length)diagData.warn.push({msg:`場景「${id}」沒有按鈕`,loc:`場景:${id}`});
+    });
+    diagData.info.push({msg:`共${sc.length}個場景`,loc:sc.join(', ')});
+    diagData.info.push({msg:`共${sc.reduce((a,id)=>a+(r.data[id].btns||[]).length,0)}個按鈕`,loc:''});
+  }
+  updateBadges();renderDiag('D');renderDiag('M');
+}
+function updateBadges(){
+  const e=diagData.err.length,w=diagData.warn.length,i=diagData.info.length;
+  [['D-err-badge',e,''],['M-err-badge',e,''],['D-warn-badge',w,'w'],['M-warn-badge',w,'w'],['D-info-badge',i,'ok'],['M-info-badge',i,'ok']].forEach(([id,n,cls])=>{
+    const el=document.getElementById(id);if(!el)return;
+    el.textContent=n;el.className='badge'+(cls?' '+cls:'')+(n&&!cls?' err':'');
+  });
+  const dl=document.getElementById('diag-tab-label');
+  if(dl)dl.textContent=e?`診斷(${e})`:w?`診斷(${w})`:'診斷';
+}
+function switchDTab(t){dTab=t;['err','warn','info'].forEach(x=>document.getElementById(`D-dtab-${x}`).classList.toggle('active',x===t));renderDiag('D');}
+function switchMDTab(t){mTab=t;['err','warn','info'].forEach(x=>document.getElementById(`M-dtab-${x}`).classList.toggle('active',x===t));renderDiag('M');}
+function renderDiag(pre){
+  const tab=pre==='D'?dTab:mTab;
+  const items=diagData[tab]||[];
+  const icons={err:'🔴',warn:'🟡',info:'🔵'};
+  const msgs={err:'沒有錯誤 ✓',warn:'沒有警告 ✓',info:'尚無資訊'};
+  const bodyId=pre==='D'?'diag-body':'M-diag-body';
+  const el=document.getElementById(bodyId);if(!el)return;
+  if(!items.length){el.innerHTML=`<div class="diag-empty">${msgs[tab]}</div>`;return;}
+  el.innerHTML=items.map(it=>`<div class="diag-item" onclick="jumpToErr(${it.line||0})"><span class="diag-icon">${icons[tab]}</span><span class="diag-msg">${it.msg}${it.loc?`<div class="diag-loc">${it.loc}</div>`:''}</span></div>`).join('');
+}
+function jumpToErr(line){
+  if(!line)return;
+  const id=isMob()?'M-editor':'D-editor';
+  const ed=document.getElementById(id);
+  const lines=ed.value.split('\n');
+  let pos=0;for(let i=0;i<Math.min(line-1,lines.length);i++)pos+=lines[i].length+1;
+  ed.focus();ed.setSelectionRange(pos,pos+(lines[line-1]||'').length);
+}
+
+// SCENES
+function updateScenes(){
+  if(!data)return;
+  const scenes=Object.keys(data);
+  if(!sceneId||!data[sceneId])sceneId=scenes[0];
+  document.getElementById('scene-list').innerHTML=scenes.map(id=>`
+    <div class="scene-item${id===sceneId?' active':''}" onclick="selScene('${id}');closeDrawer()">
+      <span>📄 ${id}</span>
+      <span class="scene-badge">${(data[id].btns||[]).length}b</span>
+      <button class="scene-del" onclick="delScene('${id}',event)">×</button>
+    </div>`).join('');
+}
+function selScene(id){
+  sceneId=id;updateScenes();updatePVSels();
+  ['D-pvsel','M-pvsel'].forEach(s=>{const el=document.getElementById(s);if(el)el.value=id;});
+  renderPreview();
+  if(eTab==='visual')buildVPanel('D');
+  if(mETab==='visual')buildVPanel('M');
+}
+function addScene(){
+  const r=safeParse(getVal());if(!r.ok){setStatus('請先修正JSON錯誤','e');return;}
+  let nid='scene_'+(Object.keys(r.data).length+1);
+  while(r.data[nid])nid+='_new';
+  r.data[nid]={title:'新場景',head:'新場景標題',desc:'請輸入描述...',btns:[{label:'返回',to:Object.keys(r.data)[0]}]};
+  pushUndo(getVal());setVal(JSON.stringify(r.data,null,2));selScene(nid);
+  setStatus(`已新增場景「${nid}」`,'ok');
+}
+function delScene(id,e){
+  e.stopPropagation();
+  const r=safeParse(getVal());if(!r.ok)return;
+  if(Object.keys(r.data).length<=1){setStatus('至少需要一個場景','e');return;}
+  if(!confirm(`確定要刪除場景「${id}」嗎？`))return;
+  delete r.data[id];
+  pushUndo(getVal());sceneId=Object.keys(r.data)[0];
+  setVal(JSON.stringify(r.data,null,2));setStatus(`已刪除場景「${id}」`,'ok');
+}
+
+// PREVIEW
+function updatePVSels(){
+  if(!data)return;
+  const scenes=Object.keys(data);
+  ['D-pvsel','M-pvsel'].forEach(selId=>{
+    const el=document.getElementById(selId);if(!el)return;
+    const cur=el.value;
+    el.innerHTML=scenes.map(id=>`<option value="${id}">${id}</option>`).join('');
+    el.value=scenes.includes(cur)?cur:scenes[0];
+  });
+}
+function renderPreview(){
+  if(!data)return;
+  const dSel=document.getElementById(isMob()?'M-pvsel':'D-pvsel');
+  const id=(dSel?dSel.value:null)||Object.keys(data)[0];
+  const scene=data[id];if(!scene)return;
+  [['D','D-pvtitle','D-pvhead','D-pvdesc','D-pvfields','D-pvbtns'],
+   ['M','M-pvtitle','M-pvhead','M-pvdesc','M-pvfields','M-pvbtns']].forEach(([,t,h,d,f,b])=>{
+    const tEl=document.getElementById(t),hEl=document.getElementById(h),
+          dEl=document.getElementById(d),fEl=document.getElementById(f),bEl=document.getElementById(b);
+    if(tEl)tEl.textContent=(scene.title||id).toUpperCase();
+    if(hEl)hEl.textContent=scene.head||'';
+    if(dEl)dEl.textContent=scene.desc||'';
+    if(fEl)fEl.innerHTML=(scene.fields||[]).map(f=>`<div class="pv-field-label">${f}</div><div class="pv-field-input">${f}...</div>`).join('');
+    if(bEl)bEl.innerHTML=(scene.btns||[]).map(btn=>`<div class="pv-btn" style="background:${btn.to?'#111':'#3b5bdb'}">${btn.label}</div>`).join('');
+  });
+}
+
+// VISUAL PANEL
+function switchETab(t){eTab=t;['code','visual'].forEach(x=>{document.getElementById(`etab-${x}`).classList.toggle('active',x===t);});document.getElementById('panel-code').style.display=t==='code'?'block':'none';document.getElementById('panel-visual').style.display=t==='visual'?'block':'none';if(t==='visual')buildVPanel('D');}
+function switchMETab(t){mETab=t;['code','visual'].forEach(x=>{document.getElementById(`M-etab-${x}`).classList.toggle('active',x===t);});document.getElementById('M-panel-code').style.display=t==='code'?'block':'none';document.getElementById('M-panel-visual').style.display=t==='visual'?'block':'none';if(t==='visual')buildVPanel('M');}
+
+function buildVPanel(pre){
+  const panelId=pre==='D'?'D-vpanel':'M-vpanel';
+  const el=document.getElementById(panelId);if(!el||!data)return;
+  const scenes=Object.keys(data);
+  const id=sceneId||scenes[0];
+  const scene=data[id]||{};
+  const p=pre.toLowerCase();
+  const opts=scenes.map(s=>`<option value="${s}"${s===id?' selected':''}>${s}</option>`).join('');
+  const btnItems=(scene.btns||[]).map((btn,i)=>`
+    <div class="vbtn-item">
+      <div class="vfield" style="margin:0"><label style="font-size:9px">按鈕文字</label>
+        <input class="vbtn-label" value="${esc(btn.label||'')}" placeholder="按鈕名稱">
+      </div>
+      <div class="vfield" style="margin:0"><label style="font-size:9px">動作 to: / run:</label>
+        <input class="vbtn-action" value="${btn.to?'to:'+btn.to:btn.run?'run:'+btn.run:''}" placeholder="to:sceneId">
+      </div>
+      <button class="vbtn-del" onclick="this.closest('.vbtn-item').remove()">✕</button>
+    </div>`).join('');
+  el.innerHTML=`
+    <div style="margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:700;color:var(--text-dim)">場景：</span>
+      <select onchange="selScene(this.value)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:6px 8px;font-size:12px;outline:none;min-height:36px">${opts}</select>
+    </div>
+    <div class="vfield-row">
+      <div class="vfield"><label>場景 ID</label><input id="${p}-v-id" value="${esc(id)}"></div>
+      <div class="vfield"><label>標題 (title)</label><input id="${p}-v-title" value="${esc(scene.title||'')}"></div>
+    </div>
+    <div class="vfield"><label>大標題 (head)</label><input id="${p}-v-head" value="${esc(scene.head||'')}"></div>
+    <div class="vfield"><label>描述 (desc)</label><textarea id="${p}-v-desc">${scene.desc||''}</textarea></div>
+    <div class="vfield"><label>欄位 (逗號分隔)</label><input id="${p}-v-fields" value="${(scene.fields||[]).join(', ')}"></div>
+    <div class="vsection-title">按鈕 (btns)</div>
+    <div id="${p}-btns-list">${btnItems}</div>
+    <button class="vadd-btn" onclick="addVBtn('${p}')">＋ 新增按鈕</button>
+    <button class="vapply" onclick="applyV('${p}')">✓ 套用變更</button>
+  `;
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+function addVBtn(p){
+  const list=document.getElementById(`${p}-btns-list`);
+  const div=document.createElement('div');div.className='vbtn-item';
+  div.innerHTML=`<div class="vfield" style="margin:0"><label style="font-size:9px">按鈕文字</label><input class="vbtn-label" placeholder="按鈕名稱"></div><div class="vfield" style="margin:0"><label style="font-size:9px">動作</label><input class="vbtn-action" placeholder="to:sceneId"></div><button class="vbtn-del" onclick="this.closest('.vbtn-item').remove()">✕</button>`;
+  list.appendChild(div);
+}
+function applyV(p){
+  try{
+    const r=safeParse(getVal());if(!r.ok){setStatus('JSON錯誤','e');return;}
+    const d2=r.data;
+    const oldId=sceneId||Object.keys(d2)[0];
+    const newId=(document.getElementById(`${p}-v-id`).value||oldId).trim();
+    const sc=d2[oldId]||{};
+    sc.title=document.getElementById(`${p}-v-title`).value;
+    sc.head=document.getElementById(`${p}-v-head`).value;
+    sc.desc=document.getElementById(`${p}-v-desc`).value;
+    const fr=document.getElementById(`${p}-v-fields`).value;
+    sc.fields=fr?fr.split(',').map(f=>f.trim()).filter(Boolean):[];
+    const btns=[];
+    document.querySelectorAll(`#${p}-btns-list .vbtn-item`).forEach(item=>{
+      const label=item.querySelector('.vbtn-label').value.trim();
+      const action=item.querySelector('.vbtn-action').value.trim();
+      if(!label)return;
+      const btn={label};
+      if(action.startsWith('to:'))btn.to=action.slice(3).trim();
+      else if(action.startsWith('run:'))btn.run=action.slice(4).trim();
+      else if(action)btn.to=action;
+      btns.push(btn);
+    });
+    sc.btns=btns;
+    if(newId!==oldId)delete d2[oldId];
+    d2[newId]=sc;
+    pushUndo(getVal());setVal(JSON.stringify(d2,null,2));sceneId=newId;
+    setStatus('✓ 已更新','ok');
+  }catch{setStatus('更新失敗','e');}
+}
+
+// URL
+function genURL(silent){
+  const r=safeParse(getVal());
+  if(!r.ok){if(!silent)setStatus('JSON錯誤','e');return null;}
+  try{
+    const b64=btoa(Array.from(new TextEncoder().encode(JSON.stringify(r.data)),b=>String.fromCharCode(b)).join(''));
+    const url=location.origin+location.pathname+'?d='+encodeURIComponent(b64);
+    ['url-output','M-url-output'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=url;});
+    window._url=url;return url;
+  }catch{return null;}
+}
+function generateAndCopy(){const u=genURL();if(u)navigator.clipboard.writeText(u).then(()=>setStatus('✓ URL已複製！','ok'));}
+function copyURL(){const u=window._url||genURL();if(!u){setStatus('請先生成URL','e');return;}navigator.clipboard.writeText(u).then(()=>setStatus('✓ 已複製','ok'));}
+
+// RUNTIME
+function openRuntime(){
+  const r=safeParse(getVal());if(!r.ok){setStatus('JSON錯誤','e');return;}
+  rtState={};
+  document.getElementById('runtime-overlay').classList.add('show');
+  document.querySelector('.rt-close').style.display='';
+  renderRuntime(Object.keys(r.data)[0],r.data);
+}
+function closeRuntime(){document.getElementById('runtime-overlay').classList.remove('show');}
+function renderRuntime(pid,d){
+  const page=d[pid];if(!page)return;
+  document.getElementById('rt-title').textContent=(page.title||pid).toUpperCase();
+  let h=page.head||'',desc=page.desc||'';
+  Object.keys(rtState).forEach(k=>{const rx=new RegExp(`{{${k}}}`,'g');h=h.replace(rx,rtState[k]);desc=desc.replace(rx,rtState[k]);});
+  const fields=(page.fields||[]).map(f=>`<div style="margin-bottom:12px"><div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#999;margin-bottom:4px">${f}</div><input id="rt-input-${f}" value="${rtState[f]||''}" style="width:100%;padding:12px;background:#f5f5f5;border:1px solid #e5e5e5;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;min-height:48px"></div>`).join('');
+  const btns=(page.btns||[]).map(btn=>`<button onclick="rtClick(this)" data-to="${btn.to||''}" data-run="${encodeURIComponent(btn.run||'')}" data-fields='${JSON.stringify(page.fields||[])}' style="width:100%;padding:14px;background:#111;color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:700;margin-bottom:10px;cursor:pointer;min-height:52px;transition:background .15s" onmouseover="this.style.background='#3b5bdb'" onmouseout="this.style.background='#111'">${btn.label}</button>`).join('');
+  document.getElementById('rt-content').innerHTML=`<h2 style="font-size:22px;font-weight:900;color:#1a1a1a;margin-bottom:8px;line-height:1.2">${h}</h2><p style="font-size:14px;color:#666;line-height:1.6;margin-bottom:18px;white-space:pre-line">${desc}</p>${fields}<div style="margin-top:8px">${btns}</div>`;
+  window._rtData=d;
+}
+function rtClick(btn){
+  JSON.parse(btn.dataset.fields||'[]').forEach(f=>{const el=document.getElementById(`rt-input-${f}`);if(el)rtState[f]=el.value;});
+  const to=btn.dataset.to,run=decodeURIComponent(btn.dataset.run);
+  if(to)renderRuntime(to,window._rtData);
+  if(run)try{eval(run);}catch(e){alert('執行錯誤: '+e.message);}
+}
+
+// MOBILE TABS
+function switchMTab(tab){
+  mMobTab=tab;
+  ['editor','preview','diag'].forEach(t=>{
+    document.getElementById(`mp-${t}`).classList.toggle('active',t===tab);
+    document.getElementById(`btab-${t}`).classList.toggle('active',t===tab);
+  });
+  document.getElementById('btab-scenes').classList.remove('active');
+}
+
+// DRAWER
+function toggleDrawer(){
+  const sb=document.getElementById('sidebar'),ov=document.getElementById('drawer-overlay');
+  if(sb.classList.contains('open')){sb.classList.remove('open');ov.style.opacity='0';setTimeout(()=>ov.style.display='none',250);}
+  else{ov.style.display='block';requestAnimationFrame(()=>{ov.style.opacity='1';});sb.classList.add('open');}
+}
+function closeDrawer(){
+  const sb=document.getElementById('sidebar'),ov=document.getElementById('drawer-overlay');
+  sb.classList.remove('open');ov.style.opacity='0';setTimeout(()=>ov.style.display='none',250);
+}
+
+// STATUS
+function setStatus(msg,type){
+  const sb=document.getElementById('statusbar');
+  document.getElementById('status-msg').textContent=msg;
+  sb.className=type==='e'?'e':type==='w'?'w':'';
+}
+
+// EXAMPLE
+function loadExample(key){
+  const ex=EXAMPLES[key];if(!ex)return;
+  pushUndo(getVal()||'');setVal(JSON.stringify(ex,null,2));setStatus(`已載入：${key}`,'ok');
+}
+
+init();
+</script>
+</body>
+</html>
